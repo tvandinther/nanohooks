@@ -9,14 +9,21 @@ import (
 
 type listener struct {
 	rabbitMQUrl string
-	registrar *registrar
+	replyChannel chan RabbitMsg
+	registrar registrar
 	webhookService *webhookService
 }
 
-func newListener(r *registrar, w *webhookService) *listener {
+type RabbitMsg struct {
+	QueueName string                   `json:"queueName"`
+	Reply     spec.WebhookJobReply `json:"reply"`
+}
+
+func newListener(r registrar, w *webhookService) *listener {
 	return &listener{
 		registrar:      r,
 		webhookService: w,
+		replyChannel: make(chan RabbitMsg, 10),
 	}
 }
 
@@ -56,10 +63,12 @@ func (l *listener) listen() {
 		log.Fatal(err)
 	}
 
+	go l.startReplyService()
+
 	for {
 		select {
 		case msg := <-msgChannel:
-			hookMsg := &spec.CreateWebhookJobMessage{}
+			hookMsg := &spec.WebhookJobMessage{}
 			err := proto.Unmarshal(msg.Body, hookMsg)
 			if err != nil {
 				log.Println(err)
@@ -71,11 +80,62 @@ func (l *listener) listen() {
 				log.Println(err)
 			}
 			
-			handleMsg(hookMsg)
+			l.handleMsg(hookMsg)
 		}
 	}
 }
 
-func handleMsg(msg *spec.CreateWebhookJobMessage) {
-	
+func (l *listener) handleMsg(msg *spec.WebhookJobMessage) {
+	//TODO: Create webhook job
+	AddAccountTrigger(l.registrar, l.webhookService, newWebhookJobFromProto(msg.WebhookJob))
+
+	reply := spec.WebhookJobReply{
+		Uid:    msg.Uid,
+		Status: spec.ActionResult_SUCCESSFUL,
+	}
+
+	replyMsg := RabbitMsg{
+		QueueName: msg.ReplyTo,
+		Reply: reply,
+	}
+
+	l.replyChannel <-replyMsg
+}
+
+func (l *listener) startReplyService() {
+	conn, err := amqp.Dial(l.rabbitMQUrl)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	amqpChannel, err := conn.Channel()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for {
+		select {
+		case msg := <-l.replyChannel:
+			data, err := proto.Marshal(&msg.Reply)
+			if err != nil {
+				log.Printf("ERROR: fail marshal: %s", err.Error())
+				continue
+			}
+
+			err = amqpChannel.Publish(
+				"",
+				msg.QueueName,
+				false,
+				false,
+				amqp.Publishing{
+					ContentType: "text/plain",
+					Body:        data,
+				},
+			)
+			if err != nil {
+				log.Printf("ERROR: fail publish msg: %s", err.Error())
+				continue
+			}
+		}
+	}
 }

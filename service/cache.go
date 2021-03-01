@@ -2,6 +2,8 @@ package service
 
 import (
 	"errors"
+	spec "github.com/tvandinther/nanohooks/proto"
+	"log"
 	"net/url"
 )
 
@@ -9,6 +11,19 @@ type webhookJob struct {
 	id string
 	accounts []string
 	recipient url.URL
+}
+
+func newWebhookJobFromProto(protoWebhookJob *spec.WebhookJob) webhookJob {
+	parsedUrl, err := url.Parse(protoWebhookJob.Recipient)
+	if err != nil {
+		log.Println(err)
+	}
+
+	return webhookJob{
+		id: protoWebhookJob.Id,
+		accounts: protoWebhookJob.Accounts,
+		recipient: *parsedUrl,
+	}
 }
 
 type accountSet = map[string]webhookJob

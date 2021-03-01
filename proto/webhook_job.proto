@@ -10,13 +10,26 @@ message WebhookJob {
   string recipient = 3;
 }
 
-message CreateWebhookJobMessage {
- string uid = 1;
- WebhookJob webhookJob = 2;
- string replyTo = 3;
+enum WebhookJobAction {
+  CREATE = 0;
+  UPDATE = 1;
+  DELETE = 2;
 }
 
-message CreateWebhookJobReply {
+message WebhookJobMessage {
+ string uid = 1;
+ WebhookJobAction action = 2;
+ WebhookJob webhookJob = 3;
+ string replyTo = 4;
+}
+
+enum ActionResult {
+  SUCCESSFUL = 0;
+  ERROR = 1;
+}
+
+message WebhookJobReply {
   string uid = 1;
-  string status = 2;
+  ActionResult status = 2;
+  string errorInfo = 3;
 }

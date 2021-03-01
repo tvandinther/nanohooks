@@ -48,6 +48,9 @@ func Start() {
 	var webhookService *webhookService
 	webhookService = newWebhookService()
 
+	var listener *listener
+	listener = newListener(registrar, webhookService)
+
 	go func() {
 		defer close(done)
 		for {
@@ -76,19 +79,13 @@ func Start() {
 		}
 	}()
 
+	go listener.listen()
+
 	recipient := url.URL{
 		Scheme:      "http",
 		Host:        "localhost:8080",
 	}
 	account := "nano_3xaz74n68af4oa9jfn8kuan44xz1j5nr69ztt7qo8bu1wgqns9upcfntgkc7"
-
-	job := webhookJob{
-		id: "1",
-		accounts: []string{account},
-		recipient: recipient,
-	}
-
-	AddAccountTrigger(registrar, webhookService, job)
 
 	for {
 		select {
