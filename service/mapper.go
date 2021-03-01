@@ -1,14 +1,16 @@
 package service
 
 import (
+	"github.com/tvandinther/nanohooks/service/models"
+	"github.com/tvandinther/nanohooks/service/views"
 	"log"
 	"strconv"
 	"strings"
 )
 
-type accountTriggerViewOption func(*AccountTriggerView)
+type accountTriggerViewOption func(*views.AccountTriggerView)
 
-func newAccountTriggerView(receipt *websocketConfirmationReceipt, opts ...accountTriggerViewOption) AccountTriggerView {
+func newAccountTriggerView(receipt *models.WebsocketConfirmationReceipt, opts ...accountTriggerViewOption) views.AccountTriggerView {
 	message := receipt.Message
 
 	time, err := strconv.ParseInt(receipt.Time, 10, 64)
@@ -19,7 +21,7 @@ func newAccountTriggerView(receipt *websocketConfirmationReceipt, opts ...accoun
 	amount, err := strconv.ParseFloat(convertRawToMNano(message.Amount), 32)
 	balance, err := strconv.ParseFloat(convertRawToMNano(message.Block.Balance), 32)
 
-	v := AccountTriggerView{
+	v := views.AccountTriggerView{
 		Time: time,
 		Type:    message.Block.Subtype,
 		Amount:  amount,
@@ -51,19 +53,19 @@ func convertRawToMNano(s string) string {
 }
 
 func asIncoming() accountTriggerViewOption {
-	return func(v *AccountTriggerView) {
+	return func(v *views.AccountTriggerView) {
 		v.Transaction = "incoming"
 	}
 }
 
 func asOutgoing() accountTriggerViewOption {
-	return func(v *AccountTriggerView) {
+	return func(v *views.AccountTriggerView) {
 		v.Transaction = "outgoing"
 	}
 }
 
 func withAccounts(sendingAccount, receivingAccount string) accountTriggerViewOption {
-	return func(v *AccountTriggerView) {
+	return func(v *views.AccountTriggerView) {
 		v.SendingAccount = sendingAccount
 		v.ReceivingAccount = receivingAccount
 	}

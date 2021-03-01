@@ -2,6 +2,7 @@ package service
 
 import (
 	"github.com/gorilla/websocket"
+	"github.com/tvandinther/nanohooks/service/models"
 	"log"
 	"net/url"
 	"os"
@@ -17,12 +18,6 @@ type message = struct {
 	Topic   string `json:"topic"`
 	Ack     bool   `json:"ack,omitempty"`
 	Options interface{} `json:"options,omitempty"`
-}
-
-type websocketConfirmationReceipt struct {
-	Topic string `json:"topic"`
-	Time string `json:"time"`
-	Message confirmationMessage `json:"message"`
 }
 
 func Start() {
@@ -56,7 +51,7 @@ func Start() {
 	go func() {
 		defer close(done)
 		for {
-			payload := websocketConfirmationReceipt{}
+			payload := models.WebsocketConfirmationReceipt{}
 			err := conn.ReadJSON(&payload)
 			if err != nil {
 				log.Println("read:", err)
@@ -70,7 +65,7 @@ func Start() {
 				} else {
 					err = webhookService.ReceiveAccount(&payload)
 					if err != nil {
-						registrar.register("confirmation", updateOptions{
+						registrar.register("confirmation", models.UpdateAccountOptions{
 							AccountsDel: []string{payload.Message.Account},
 						})
 					}
@@ -87,7 +82,13 @@ func Start() {
 	}
 	account := "nano_3xaz74n68af4oa9jfn8kuan44xz1j5nr69ztt7qo8bu1wgqns9upcfntgkc7"
 
-	AddAccountTrigger(registrar, webhookService, account, recipient)
+	job := webhookJob{
+		id: "1",
+		accounts: []string{account},
+		recipient: recipient,
+	}
+
+	AddAccountTrigger(registrar, webhookService, job)
 
 	for {
 		select {

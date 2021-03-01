@@ -4,30 +4,29 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"fmt"
+	"github.com/tvandinther/nanohooks/service/models"
 	"io"
 	"log"
 	"net/http"
-	"net/url"
 )
 
 type webhookService struct {
-	cache map[string][]url.URL
+	cache cache
 }
 
 func newWebhookService() *webhookService {
 	return &webhookService{
-		map[string][]url.URL{},
+		cache: newCache(),
 	}
 }
 
-func sendWebhook(recipient url.URL, content interface{}) {
+func sendWebhook(job webhookJob, content interface{}) {
 	body, err := json.Marshal(content)
 	if err != nil {
 		log.Print(err)
 	}
 
-	address := recipient.String()
+	address := job.recipient.String()
 
 	res, err := http.Post(address, "application/json", bytes.NewBuffer(body))
 	if err != nil {
@@ -46,47 +45,7 @@ func sendWebhook(recipient url.URL, content interface{}) {
 	}
 }
 
-func (w *webhookService) addToCache(account string, recipient url.URL) {
-	recipients, ok := w.cache[account]
-	if ok {
-		w.cache[account] = append(recipients, recipient)
-	} else {
-		w.cache[account] = []url.URL{recipient}
-	}
-}
-
-func (w *webhookService) removeFromCache(account string, recipient url.URL) error {
-	 recipients, ok := w.cache[account]
-	 if !ok {
-	 	return errors.New("account not registered")
-	 }
-	 fmt.Println("Cache deletion not implemented: ", recipients)
-	 //TODO: Add logic to remove from the cache
-	 return nil
-}
-
-type block struct {
-	Type           string `json:"type"`
-	Account        string `json:"account"`
-	Previous       string `json:"previous"`
-	Representative string `json:"representative"`
-	Balance        string `json:"balance"`
-	Link           string `json:"link"`
-	LinkAsAccount  string `json:"link_as_account"`
-	Signature      string `json:"signature"`
-	Work           string `json:"work"`
-	Subtype        string `json:"subtype"`
-}
-
-type confirmationMessage struct {
-	Account          string `json:"account"`
-	Amount           string `json:"amount"`
-	Hash             string `json:"hash"`
-	ConfirmationType string `json:"confirmation_type"`
-	Block            block  `json:"block"`
-}
-
-func (w *webhookService) ReceiveAccount(confirmationReceipt *websocketConfirmationReceipt) error {
+func (w *webhookService) ReceiveAccount(confirmationReceipt *models.WebsocketConfirmationReceipt) error {
 	message := confirmationReceipt.Message
 	confirmationType := message.Block.Subtype
 	var senderAccount, receiverAccount string
@@ -105,17 +64,17 @@ func (w *webhookService) ReceiveAccount(confirmationReceipt *websocketConfirmati
 		log.Printf("Unknown confirmation type: %s\n", confirmationType)
 	}
 
-	recipients, sendOk := w.cache[senderAccount]
+	accountSet, sendOk := w.cache.get(senderAccount)
 	if sendOk {
-		for _, recipient := range recipients {
-			go sendWebhook(recipient, newAccountTriggerView(confirmationReceipt, asOutgoing(), withAccounts(senderAccount, receiverAccount)))
+		for _, job := range accountSet {
+			go sendWebhook(job, newAccountTriggerView(confirmationReceipt, asOutgoing(), withAccounts(senderAccount, receiverAccount)))
 		}
 	}
 
-	recipients, receiveOk := w.cache[receiverAccount]
+	accountSet, receiveOk := w.cache.get(receiverAccount)
 	if receiveOk {
-		for _, recipient := range recipients {
-			go sendWebhook(recipient, newAccountTriggerView(confirmationReceipt, asIncoming(), withAccounts(receiverAccount, receiverAccount)))
+		for _, job := range accountSet {
+			go sendWebhook(job, newAccountTriggerView(confirmationReceipt, asIncoming(), withAccounts(receiverAccount, receiverAccount)))
 		}
 	}
 

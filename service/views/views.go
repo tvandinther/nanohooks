@@ -1,4 +1,4 @@
-package service
+package views
 
 type AccountTriggerView struct {
 	Time             int64   `json:"time"`
