@@ -21,6 +21,7 @@ type RabbitMsg struct {
 
 func newListener(r registrar, w *webhookService) *listener {
 	return &listener{
+		rabbitMQUrl: "amqp://admin:admin@localhost:5672",
 		registrar:      r,
 		webhookService: w,
 		replyChannel: make(chan RabbitMsg, 10),
@@ -86,7 +87,8 @@ func (l *listener) listen() {
 }
 
 func (l *listener) handleMsg(msg *spec.WebhookJobMessage) {
-	//TODO: Create webhook job
+	log.Println("Received message: ", msg.Uid)
+
 	AddAccountTrigger(l.registrar, l.webhookService, newWebhookJobFromProto(msg.WebhookJob))
 
 	reply := spec.WebhookJobReply{

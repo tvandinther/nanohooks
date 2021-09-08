@@ -17,7 +17,7 @@ type message = struct {
 	Action  string `json:"action"`
 	Topic   string `json:"topic"`
 	Ack     bool   `json:"ack,omitempty"`
-	Options interface{} `json:"options,omitempty"`
+	Options interface{} `json:"options"`
 }
 
 func Start() {
@@ -68,9 +68,9 @@ func Start() {
 				} else {
 					err = webhookService.ReceiveAccount(&payload)
 					if err != nil {
-						registrar.register("confirmation", models.UpdateAccountOptions{
-							AccountsDel: []string{payload.Message.Account},
-						})
+						//registrar.register("confirmation", models.UpdateAccountOptions{
+						//	AccountsDel: []string{payload.Message.Account},
+						//})
 					}
 				}
 			default:
@@ -80,12 +80,6 @@ func Start() {
 	}()
 
 	go listener.listen()
-
-	recipient := url.URL{
-		Scheme:      "http",
-		Host:        "localhost:8080",
-	}
-	account := "nano_3xaz74n68af4oa9jfn8kuan44xz1j5nr69ztt7qo8bu1wgqns9upcfntgkc7"
 
 	for {
 		select {

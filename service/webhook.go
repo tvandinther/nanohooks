@@ -28,6 +28,7 @@ func sendWebhook(job webhookJob, content interface{}) {
 
 	address := job.recipient.String()
 
+	log.Println("Sending webhook to: ", address)
 	res, err := http.Post(address, "application/json", bytes.NewBuffer(body))
 	if err != nil {
 		log.Println(err)

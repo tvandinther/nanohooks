@@ -1,6 +1,7 @@
 package service
 
 import (
+	"encoding/json"
 	"github.com/gorilla/websocket"
 	"log"
 )
@@ -36,10 +37,25 @@ func newWebsocketRegistrar(conn *websocket.Conn) *websocketRegistrar {
 }
 
 func (r *websocketRegistrar) register(topic string, options interface{}) {
-	r.connection.WriteJSON(message{
-		Action:  "update",
-		Topic:   topic,
-		Ack:     false,
-		Options: options,
-	})
+	//err := r.connection.WriteJSON(message{
+	//	Action:  "update",
+	//	Topic:   topic,
+	//	Ack:     false,
+	//	Options: options,
+	//})
+
+	message := message{
+			Action:  "update",
+			Topic:   topic,
+			Ack:     false,
+			Options: options,
+		}
+	bytes, _ := json.Marshal(message)
+	log.Println(string(bytes))
+
+	err := r.connection.WriteMessage(websocket.TextMessage, bytes)
+
+	if err != nil {
+		log.Println("Error writing JSON to Nano node websocket: ", err)
+	}
 }
